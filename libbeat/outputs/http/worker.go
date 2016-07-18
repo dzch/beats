@@ -69,7 +69,7 @@ sendloop:
 			break sendloop
 		}
 		// fail retry
-		logp.Err("fail to send data: %s, %s", h.config.Url, err.Error())
+		logp.Err("http worker [%d] fail to send data: %s, %s", h.id, h.config.Url, err.Error())
 		sendTimes++
 		if h.config.MaxRetries == -1 || sendTimes < h.config.MaxRetries+1 {
 			time.Sleep(h.config.FailRetryInterval)
