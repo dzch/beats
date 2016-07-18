@@ -48,12 +48,13 @@ func (h *httpWorker) run() {
 
 func (h *httpWorker) processTransData(td *transData) {
 	sendTimes := 0
-	msg, ok := td.event["message"]
+	msgi, ok := td.event["message"]
 	if !ok {
 		logp.Err("unsupported event: message is not set, skip: %#v", td.event)
 		return
 	}
-	buf := bytes.NewReader([]byte(msg.(string)))
+	msg := msgi.(*string)
+	buf := bytes.NewReader([]byte(*msg))
 sendloop:
 	for {
 		select {
@@ -84,10 +85,10 @@ func (h *httpWorker) doPost(data io.Reader) error {
 		h.config.Url,
 		"application/octet-stream",
 		data)
-	defer rsp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer rsp.Body.Close()
 	if rsp.StatusCode != 200 {
 		return fmt.Errorf("response status code %d", rsp.StatusCode)
 	}
