@@ -3,7 +3,9 @@ package http
 import (
 	"bytes"
 	"fmt"
+	"github.com/elastic/beats/libbeat/logp"
 	"io"
+	"net"
 	"net/http"
 	"time"
 )

@@ -1,9 +1,7 @@
 package http
 
 import (
-	"errors"
 	"expvar"
-	"fmt"
 	"time"
 
 	"github.com/elastic/beats/libbeat/common"
@@ -64,7 +62,7 @@ func (r *httpOut) init(cfg *common.Config, expireTopo int) error {
 			done:          r.done,
 			transDataChan: r.transDataChan,
 		}
-		err = hw.init()
+		err := hw.init()
 		if err != nil {
 			return err
 		}
