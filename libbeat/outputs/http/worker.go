@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"fmt"
+	"github.com/elastic/beats/libbeat/common/op"
 	"github.com/elastic/beats/libbeat/logp"
 	"io"
 	"net"
@@ -52,7 +53,7 @@ func (h *httpWorker) processTransData(td *transData) {
 		logp.Err("unsupported event: message is not set, skip: %#v", td.event)
 		return
 	}
-	buf := bytes.NewReader([]byte(*msg))
+	buf := bytes.NewReader([]byte(msg.(string)))
 sendloop:
 	for {
 		select {
@@ -63,7 +64,7 @@ sendloop:
 		buf.Seek(0, 0)
 		err := h.doPost(buf)
 		if err == nil {
-			op.SigCompleted(sig)
+			op.SigCompleted(td.signaler)
 			break sendloop
 		}
 		// fail retry
@@ -73,7 +74,7 @@ sendloop:
 			time.Sleep(h.config.FailRetryInterval)
 		} else {
 			// reachead max retires
-			op.sigCompleted(sig)
+			op.SigCompleted(td.signaler)
 		}
 	}
 }
@@ -83,7 +84,7 @@ func (h *httpWorker) doPost(data io.Reader) error {
 		h.config.Url,
 		"application/octet-stream",
 		data)
-	defer rsp.Close()
+	defer rsp.Body.Close()
 	if err != nil {
 		return err
 	}

@@ -57,7 +57,7 @@ func (r *httpOut) init(cfg *common.Config, expireTopo int) error {
 	r.transDataChan = make(chan *transData, config.QueueSize)
 	for i := 0; i < config.WorkerNum; i++ {
 		hw := &httpWorker{
-			config:        config,
+			config:        &config,
 			id:            i,
 			done:          r.done,
 			transDataChan: r.transDataChan,
@@ -72,7 +72,8 @@ func (r *httpOut) init(cfg *common.Config, expireTopo int) error {
 }
 
 func (r *httpOut) Close() error {
-	return r.mode.Close()
+	close(r.done)
+	return nil
 }
 
 func (r *httpOut) PublishEvent(
