@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/elastic/beats/libbeat/common/op"
 	"github.com/elastic/beats/libbeat/logp"
@@ -48,13 +49,20 @@ func (h *httpWorker) run() {
 
 func (h *httpWorker) processTransData(td *transData) {
 	sendTimes := 0
-	msgi, ok := td.event["message"]
-	if !ok {
-		logp.Err("unsupported event: message is not set, skip: %#v", td.event)
+	//msgi, ok := td.event["message"]
+	//if !ok {
+	//	logp.Err("unsupported event: message is not set, skip: %#v", td.event)
+	//	return
+	//}
+	//msg := msgi.(*string)
+	//buf := bytes.NewReader([]byte(*msg))
+	data, err := json.Marshal(td.event)
+	if err != nil {
+		logp.Err("http worker [%d] Fail to json encode event(%v): %#v", h.id, err, td.event)
+		op.SigCompleted(td.signaler)
 		return
 	}
-	msg := msgi.(*string)
-	buf := bytes.NewReader([]byte(*msg))
+	buf := bytes.NewReader(data)
 sendloop:
 	for {
 		select {
@@ -83,7 +91,8 @@ sendloop:
 func (h *httpWorker) doPost(data io.Reader) error {
 	rsp, err := h.client.Post(
 		h.config.Url,
-		"application/octet-stream",
+		//"application/octet-stream",
+		"application/json",
 		data)
 	if err != nil {
 		return err

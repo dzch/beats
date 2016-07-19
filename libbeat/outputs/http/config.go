@@ -22,7 +22,7 @@ var (
 		ProcTimeout:       3 * time.Second,
 		MaxRetries:        -1,
 		WorkerNum:         1,
-		QueueSize:         10,
+		QueueSize:         256,
 		FailRetryInterval: 300 * time.Millisecond,
 	}
 )
