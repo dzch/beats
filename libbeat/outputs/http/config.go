@@ -6,7 +6,8 @@ import (
 )
 
 type httpConfig struct {
-	Url               string        `config:"url"`
+	Uri               string        `config:"uri"`
+	Addrs             []string      `config:"addrs"`
 	CTimeout          time.Duration `config:"conn_timeout"`
 	ProcTimeout       time.Duration `config:"proc_timeout"`
 	WorkerNum         int           `config:"worker_num"`
@@ -17,7 +18,7 @@ type httpConfig struct {
 
 var (
 	defaultConfig = httpConfig{
-		Url:               "",
+		Uri:               "",
 		CTimeout:          200 * time.Millisecond,
 		ProcTimeout:       3 * time.Second,
 		MaxRetries:        -1,
@@ -28,8 +29,12 @@ var (
 )
 
 func (c *httpConfig) Validate() error {
-	if len(c.Url) == 0 {
-		return fmt.Errorf("url must be set, now is %v", c.Url)
+	if len(c.Uri) == 0 {
+		return fmt.Errorf("uri must be set, now is %v", c.Uri)
 	}
+	if len(c.Addrs) == 0 {
+		return fmt.Errorf("addrs must be set, now len is %d", len(c.Addrs))
+	}
+
 	return nil
 }

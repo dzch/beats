@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/common/op"
 	"github.com/elastic/beats/libbeat/logp"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -18,6 +21,10 @@ type httpWorker struct {
 	done          <-chan struct{}
 	transDataChan <-chan *transData
 	client        *http.Client
+	regTopic      *regexp.Regexp
+	hasRegTopic   bool
+	addrId        int
+	addrNum       int
 }
 
 func (h *httpWorker) init() error {
@@ -33,6 +40,15 @@ func (h *httpWorker) init() error {
 		},
 		Timeout: h.config.ProcTimeout,
 	}
+	var err error
+	h.regTopic, err = regexp.Compile("{#TOPIC}")
+	if err != nil {
+		logp.Critical("fail to regexp.Compile: %s", err.Error())
+		return err
+	}
+	h.hasRegTopic = h.regTopic.Match([]byte(h.config.Uri))
+	h.addrNum = len(h.config.Addrs)
+	h.addrId = rand.Intn(h.addrNum)
 	return nil
 }
 
@@ -65,19 +81,20 @@ func (h *httpWorker) processTransData(td *transData) {
 	buf := bytes.NewReader(data)
 sendloop:
 	for {
+		h.addrId = (h.addrId + 1) % h.addrNum
 		select {
 		case <-h.done:
 			return
 		default:
 		}
 		buf.Seek(0, 0)
-		err := h.doPost(buf)
+		err := h.doPost(td.event, buf)
 		if err == nil {
 			op.SigCompleted(td.signaler)
 			break sendloop
 		}
 		// fail retry
-		logp.Err("http worker [%d] fail to send data: %s, %s", h.id, h.config.Url, err.Error())
+		logp.Err("http worker [%d] fail to send data: %s", h.id, err.Error())
 		sendTimes++
 		if h.config.MaxRetries == -1 || sendTimes < h.config.MaxRetries+1 {
 			time.Sleep(h.config.FailRetryInterval)
@@ -88,18 +105,38 @@ sendloop:
 	}
 }
 
-func (h *httpWorker) doPost(data io.Reader) error {
+func (h *httpWorker) doPost(event common.MapStr, data io.Reader) error {
+	uri := h.config.Uri
+	if h.hasRegTopic {
+		fds, ok := event["fields"]
+		if !ok {
+			return fmt.Errorf("fields is not configured")
+		}
+		fdm, ok := fds.(common.MapStr)
+		if !ok {
+			return fmt.Errorf("fields is not map")
+		}
+		topici, ok := fdm["topic"]
+		if !ok {
+			return fmt.Errorf("fields does not contain 'topic' item")
+		}
+		topic, ok := topici.(string)
+		if !ok {
+			return fmt.Errorf("topic in fields is not string")
+		}
+		uri = h.regTopic.ReplaceAllString(h.config.Uri, topic)
+	}
+	url := fmt.Sprintf("http://%s%s", h.config.Addrs[h.addrId], uri)
 	rsp, err := h.client.Post(
-		h.config.Url,
-		//"application/octet-stream",
+		url,
 		"application/json",
 		data)
 	if err != nil {
-		return err
+		return fmt.Errorf("url: %s, err: %s", url, err.Error())
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode != 200 {
-		return fmt.Errorf("response status code %d", rsp.StatusCode)
+		return fmt.Errorf("url: %s, err: response status code %d", url, rsp.StatusCode)
 	}
 	return nil
 }
