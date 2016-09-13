@@ -79,13 +79,15 @@ func (r *httpOut) Close() error {
 func (r *httpOut) PublishEvent(
 	signaler op.Signaler,
 	opts outputs.Options,
-	event common.MapStr,
+	data outputs.Data,
+	/*event common.MapStr,*/
 ) error {
 	// TODO: using pool
 	td := &transData{
 		signaler: signaler,
 		opts:     opts,
-		event:    event,
+		event:    data.Event,
+		/*event:    event,*/
 	}
 	r.transDataChan <- td
 	return nil
